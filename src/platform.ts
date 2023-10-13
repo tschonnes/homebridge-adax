@@ -23,7 +23,7 @@ export class ADAXHomebridgePlatform implements DynamicPlatformPlugin {
   public homeStamp = moment().subtract(1, 'd');
   public homeState: Home = { rooms: [] };
   public planned: Array<Room> = [];
-  public queue: Array<Room> = [];
+  public queue = 0;
 
   constructor(
     public readonly log: Logger,
@@ -44,10 +44,7 @@ export class ADAXHomebridgePlatform implements DynamicPlatformPlugin {
   }
 
   setState() {
-    const pollingInterval = this.config.maxPollingInterval as number;
-
-
-    if (this.queue.length > 0) {
+    if (this.queue > 0) {
       this.getToken().then(token => {
         return fetch(`${this.baseUrl}/rest/v1/control`, {
           method: 'POST',
@@ -59,14 +56,6 @@ export class ADAXHomebridgePlatform implements DynamicPlatformPlugin {
             'Content-Type': 'application/json',
           },
         });
-      }).then(() => {
-        return this.getHome(true, true, true).then(() => {
-          this.updateQueue();
-        });
-      });
-    } else if (moment().isAfter(moment(this.homeStamp).add(pollingInterval, 's'))) {
-      return this.getHome(true, true).then(() => {
-        this.updateQueue();
       });
     }
   }
@@ -151,27 +140,12 @@ export class ADAXHomebridgePlatform implements DynamicPlatformPlugin {
     });
   }
 
-  updateQueue() {
-    this.queue = this.queue.filter((room) => {
-
-      const current = this.homeState.rooms.find(currentRoom => {
-        return currentRoom.id === room.id;
-      });
-
-      if (current === undefined) {
-        return false;
-      }
-
-      return room.targetTemperature !== current?.targetTemperature;
-    });
-  }
-
   idealState() {
     const ideal = this.homeState;
 
     ideal.rooms.forEach((room, idx) => {
       const id = ideal.rooms[idx].id;
-      const planned = this.planned.find((room) => room.id === id);
+      const planned = this.planned.filter((room) => room.id === id).pop();
 
       if (planned) {
         ideal.rooms[idx].targetTemperature = planned.targetTemperature;
@@ -185,12 +159,20 @@ export class ADAXHomebridgePlatform implements DynamicPlatformPlugin {
     const index = this.homeState.rooms.findIndex((room) => room.id === id);
 
     if (index !== undefined) {
-      this.planned[index] = {
-        id: id,
-        ...state,
-      };
+      let planned = this.planned.filter((room) => room.id === id).pop();
+      if (planned) {
+        planned = {
+          id: id,
+          ...state,
+        };
+      } else {
+        this.planned.push({
+          id: id,
+          ...state,
+        });
+      }
 
-      this.queue = this.planned;
+      this.queue = this.planned.length;
     }
 
     return Promise.resolve({
