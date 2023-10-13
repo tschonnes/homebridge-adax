@@ -79,7 +79,7 @@ export class ADAXPlatformAccessory {
   }
 
   getRoom() {
-    return this.platform.getHome().then((home) => {
+    return this.platform.getHome(true, true, false).then((home) => {
       const room = home.rooms.filter((e) => {
         return e.id === this.accessory.context.device.id;
       })[0];

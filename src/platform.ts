@@ -105,7 +105,7 @@ export class ADAXHomebridgePlatform implements DynamicPlatformPlugin {
   }
 
   getHome(useIdeal = true, setPlanned = false, force = false) {
-    if (force || moment(this.homeStamp).add(60, 's').isAfter(moment())) {
+    if (force) {
       return Promise.resolve(this.idealState());
     }
 
